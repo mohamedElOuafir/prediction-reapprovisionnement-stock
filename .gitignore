@@ -1,0 +1,7 @@
+.env
+.vscode
+\__pycache__
+*.csv
+\artifacts
+\catboost_info
+gen.py
