@@ -85,52 +85,6 @@ def evaluate_regression_models(x_val_list, y_val_list, trained_models_all_splits
 
 
 
-"""def evaluate_regression_models(x_test, y_test, models):
-
-    print(f"============== Evaluation phase ==============\n\n")
-    wape_list = []
-    r2_list = []
-    bias_list = []
-
-
-    for name, model in models.items():
-
-        print(f"============== Evaluation du model {name} ==============\n\n")
-        y_pred = model.predict(x_test)
-
-        wape = np.mean(np.abs((y_test - y_pred) / y_test)) * 100
-        bias = bias_normalized_score(y_test, y_pred)
-        r2 = r2_score(y_test, y_pred)
-
-        wape_list.append(wape)
-        r2_list.append(r2)
-        bias_list.append(bias)
-
-        print(f"wape: {wape:.4f}\nr2 score: {r2:.4f}\nbias: {bias:.4f}\n\n")
-
-    print(f"============== Evaluation phase finished ==============\n\n")
-
-    return wape_list, r2_list, bias_list"""
-
-
-
-
-def evaluate_classification_models_2(x_test, y_test, model):
-
-    y_prob = model.predict_proba(x_test)[:, 1]
-    y_pred = (y_prob >= 0.5).astype(int)
-
-    accuracy = accuracy_score(y_test, y_pred)
-    recall = recall_score(y_test, y_pred)
-    precision = precision_score(y_test, y_pred)
-    f1 = f1_score(y_test, y_pred)
-
-
-    print(
-        f"accuracy: {accuracy:.4f}, recall: {recall:.4f}, precision: {precision:.4f}, f1: {f1:.4f}\n"
-    )
-
-
 # fonction pour calculer le WAPE:
 def wape(y_true, y_pred):
     y_true, y_pred = np.array(y_true), np.array(y_pred)

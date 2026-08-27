@@ -1,0 +1,9 @@
+FROM public.ecr.aws/lambda/python:3.13
+
+COPY src/ ${LAMBDA_TASK}/src
+
+COPY module.txt ${LAMBDA_TASK}
+
+RUN pip install --no-cache-dir -r api_modules.txt
+
+CMD [ "src.api.endpoint.handler" ]

@@ -1,0 +1,78 @@
+name: CI/CD Pipeline - API
+
+on:
+    push:
+        branches: [main]
+        paths:
+            - 'src/api/**'
+            - 'DockerFile'
+            - 'module.txt'
+
+    workflow_dispatch:
+
+permissions:
+    id-token: write
+    contents: read
+
+    
+jobs:
+    build-scan-deploy:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Récupération du code source
+              uses: actions/checkout@v4
+
+            - name: Connexion à AWS via OIDC
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                role-to-assume: ${{ secrets.AWS_ROLE}}
+                aws-region: ${{ secrets.AWS_REGION }}
+            
+            - name: Connexion à AWS ECR service
+              id: login-ecr
+              uses: aws-actions/amazon-ecr-login@v2
+
+            - name: Build docker image temporaire
+              env:
+                ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+                ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+                IMAGE_TAG: ${{ github.sha }}
+
+              run: docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t reapprovisionnement-api:test .
+
+            - name: Scan des vulnérabiltés du docker image
+              uses: aquasecurity/trivy-action@0.28.0
+              with:
+                image-ref: reapprovisionnement-api:test
+                format: 'table'
+                exit-code: '1'
+                ignore-unfixed: true
+                vuln-type: 'os, library'
+                severity: 'CRITICAL,HIGH'
+
+            - name: Push docker image to AWS ECR
+              env: 
+                ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+                ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+                IMAGE_TAG: ${{ github.sha }}
+              run: |
+                docker tag reapprovisionnement-api:test $ECR_REGISTRY/$ECR_REPOSITORY:latest
+                docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+                docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+            - name: Déploiement du docker container sur AWS Lambda service
+              env: 
+                ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+                ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+                IMAGE_TAG: ${{ github.sha }}
+              run: |
+                aws lambda update-function-code --function-name reapprovisionnement-api --image-uri $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+
+
+
+
+
+
+
+

@@ -60,7 +60,6 @@ def build_features(df: pd.DataFrame):
     # Gestion des valeurs nulles crée par les lags (conso_M_precedent_1,2,3)
     df = df.fillna(-1)
 
-    df.to_csv(os.path.join(target_folder, 'conso_mensuelle_clean.csv'), mode='w', encoding='utf-8', index=False)
     return df
 
 

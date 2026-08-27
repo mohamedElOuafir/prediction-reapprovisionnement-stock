@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class PredictionRequest(BaseModel):
@@ -9,3 +9,8 @@ class PredictionRequest(BaseModel):
 class PredictionResponse(BaseModel):
     date_prediction: str
     prediction_quantite: float
+
+
+class ResTest(BaseModel):
+    status: int
+    api_healthy: bool

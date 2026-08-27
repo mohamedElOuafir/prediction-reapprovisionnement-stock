@@ -1,85 +1,98 @@
-import pandas as pd
+import datetime
 import numpy as np
+import boto3
 import os
+import json
+import joblib
+import pandas as pd
+from fastapi import HTTPException
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from features.feature_engineering import apply_one_hot_encoding, apply_target_encoding, build_features
-from models.presistance import load_artifact
 
-script_folder = os.path.dirname(os.path.abspath(__file__))
-target_folder = os.path.normpath(os.path.join(script_folder, '../..', 'data/raw'))
 
+
+
+s3_client = boto3.client("s3")
+S3_BUCKET_DATA = os.getenv("S3_DATA_BUCKET")
+S3_BUCKET_MODELS = os.getenv("S3_MODELS_BUCKET")
+
+
+
+def get_cached_artifact():
     
-# Fonction d'inférence pour prédire la quantité de consommation du stock sur:
-# * Article
-# * Site - article
-# * date prédiction
-def predict_next_month( 
-        article: str, 
-        site_article: str,
-        date_prediction: str,
-        artifact_name: str = "regression"
-    ):
+    model_key = os.getenv("MODEL_KEY")  # Défini dynamiquement par retrain.py / rollback.py
+    if not model_key:
+        # lecture du manifeste si la variable n'est pas définie
+        obj = s3_client.get_object(Bucket=S3_BUCKET_MODELS, Key="production_manifest.json")
+        manifest = json.loads(obj["Body"].read().decode("utf-8"))
+        model_key = f"versions/{manifest['active_version']}/model_artifact.joblib"
 
-    df_historique_brut = pd.read_csv(os.path.join(target_folder, 'conso_mensuelle_sim.csv'))
-    
-    # Récuppération de l'artifact du modèle
-    artifact = load_artifact()
+    local_path = f"/tmp/{os.path.basename(model_key)}"
+    s3_client.download_file(S3_BUCKET_MODELS, model_key, local_path)
+    artifact = joblib.load(local_path)
+        
+    return artifact
 
-    # Récuppération de tous les élèments de l'artifact
-    # * modèle
-    # * one hot encoder
-    # * target encoder
-    # * tous les variables du modèle
-    # * colonnes pour le one hot encoding
-    # * colonnes pour le target encoding
+
+def load_latest_historical_data():
+    local_path = "/tmp/latest_conso_brut.csv"
+
+    s3_client.download_file(S3_BUCKET_DATA, "raw/conso_mensuelle_brut_latest.csv", local_path)
+    return pd.read_csv(local_path)
+
+
+
+def predict_next_month(article: str, site_article: str, date_prediction: str, artifact):
+
+    # Récupération du modèle en cache
     model = artifact["model"]
     one_hot_encoder = artifact["one_hot_encoder"]
     target_encoder = artifact["target_encoder"]
-    feature_columns = artifact["feature_columns"]
     one_hot_columns = artifact["one_hot_columns"]
     target_columns = artifact["target_columns"]
+    feature_columns = artifact.get("feature_columns", None)
 
-    # Construire la ligne future 
-    ligne_future, date_future = build_future_row(df_historique_brut, article, site_article, date_prediction)
- 
-    # L'ajouter à l'historique brut,
+    # Chargement des données historiques
+    df_historique_brut = load_latest_historical_data()
+
+    # Construction et enrichissement des features
+    ligne_future = build_future_row(df_historique_brut, article, site_article, date_prediction)
     df_avec_future = pd.concat([df_historique_brut, ligne_future], ignore_index=True)
     df_feat = build_features(df_avec_future)
- 
-    # Récupérer la ligne du mois futur, maintenant enrichie de tous ses lags
+
+    # Extraction de la ligne cible
     df_feat['date_mois'] = pd.to_datetime(df_feat['date_mois'])
-    ligne = pd.DataFrame([df_feat[
-        (df_feat['article'] == article) &
+    match_rows = df_feat[
+        (df_feat['article'] == article) & 
         (df_feat['site_article'] == site_article)
-    ].iloc[-1]])
- 
-    if ligne.empty:
-        raise ValueError("La ligne future n'a pas été retrouvée après build_features() — "
-                          "vérifiez le tri/groupby de build_features().")
- 
-    # Encodage avec les encodeurs déjà entraînés
-    x_new = ligne.drop(columns=['conso_ce_mois', 'quantite', 'date_mois'])
+    ]
+
+    if match_rows.empty:
+        raise HTTPException(status_code=404, detail="Combinaison Article / Site introuvable dans l'historique.")
+
+    ligne = pd.DataFrame([match_rows.iloc[-1]])
+
+    # Encodage & Alignement des colonnes
+    x_new = ligne.drop(columns=['conso_ce_mois', 'quantite', 'date_mois'], errors='ignore')
     x_new = apply_one_hot_encoding(x_new, one_hot_encoder, one_hot_columns)
     x_new = apply_target_encoding(x_new, target_encoder, target_columns)
- 
-    for col in feature_columns:
-        if col not in x_new.columns:
-            x_new[col] = 0
-    x_new = x_new.reindex(columns=feature_columns, fill_value=0)
 
-    print(f"features in model artifact:\n\n{model.feature_names_}\n\n")
-    print(f"features provient:\n\n{list(x_new.columns)}")
- 
-    # Prédiction
+    if feature_columns:
+        for col in feature_columns:
+            if col not in x_new.columns:
+                x_new[col] = 0
+        x_new = x_new.reindex(columns=feature_columns, fill_value=0)
+
+    # Inférence
     prediction = model.predict(x_new)[0]
- 
     return {
         "article": article,
         "site_article": site_article,
         "date_prediction": date_prediction,
         "prediction_quantite": float(prediction)
     }
+
 
 
 
@@ -104,4 +117,3 @@ def build_future_row(df_historique_brut: pd.DataFrame, article: str, site_articl
     nouvelle_ligne['quantite'] = np.nan
  
     return pd.DataFrame([nouvelle_ligne]), date_future
-

@@ -29,9 +29,8 @@ def get_classification_models(scale_pos_weight: float = 1.0):
         "XGBoost": XGBClassifier(random_state=42, scale_pos_weight=scale_pos_weight),
     }
 
-# =============================================================
+
 # list des hyperparamétres pour le tuning du modèle séléctionné
-# =============================================================
 hyperparametres_grid = {
     "Decision Tree": {
         "max_depth": [3, 5, 8, 12, None],

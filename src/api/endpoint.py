@@ -1,15 +1,25 @@
+
 from fastapi import FastAPI
 import datetime
 import math
 import os
+from mangum import Mangum
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from api.schema import PredictionRequest, PredictionResponse
-from predictor.predict import predict_next_month
+from api.schema import PredictionRequest,PredictionResponse
+from predictor.predict import get_cached_artifact, predict_next_month
 
 
 app = FastAPI(title="API for stock consumption prediction")
 
+model_artifact = get_cached_artifact()
+
+
+@app.get("/")
+async def get_rac():
+    return {
+        "server": "ok"
+    }
 
 # Route pour vérifier le status du serveur
 @app.get("/health_check")
@@ -33,7 +43,8 @@ async def predict(request: PredictionRequest):
     result = predict_next_month(
         article,
         site_article,
-        date_prediction
+        date_prediction,
+        model_artifact
     )
 
     return PredictionResponse(
@@ -42,3 +53,4 @@ async def predict(request: PredictionRequest):
     )
 
 
+handler = Mangum(app)

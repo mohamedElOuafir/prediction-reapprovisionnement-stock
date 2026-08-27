@@ -61,7 +61,7 @@ numerical_columns = [
 def run_pipeline():
 
     # === Chargement du dataset toute entier ===
-    df = pd.read_csv(os.path.join(target_folder, 'conso_mensuelle_sim.csv'))
+    df = pd.read_csv(os.path.join(target_folder, 'conso_mensuelle_brut.csv'))
     # === Néttoyage et préparation des données ===
     df = build_features(df)
  

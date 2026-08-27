@@ -1,0 +1,47 @@
+name: MLOps - réentrainnement du modéle
+
+on:
+    schedule:
+        - cron: '0 0 2 * *'
+
+    workflow_dispatch:
+
+permissions:
+    id-token: write
+    contents: read
+    
+
+jobs:
+    run-retrain-pipeline:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Récupération du code source
+              uses: actions/checkout@v4
+
+            - name: Connexion à AWS via OIDC
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                role-to-assume: ${{ secrets.AWS_ROLE }}
+                aws-region: ${{ secrets.AWS_REGION }}
+            
+            - name: Configuration de l'environnement python
+              uses: actions/setup-python@v5
+              with: 
+                python-version: ${{ vars.PYTHON_VERSION }}
+                cache: 'pip'
+
+            - name: Installation des dépendances
+              run: pip install -r retrain_modules.txt
+            
+            - name: Exécution de pipeline de réentrainement
+              env:
+                S3_DATA_BUCKET: ${{ secrets.S3_DATA_BUCKET }}
+                S3_BUCKET_MODELS: ${{ secrets.S3_BUCKET_MODELS}}
+              run: python -m src.models.retrain
+
+            
+
+
+    
+
+

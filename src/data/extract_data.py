@@ -1,6 +1,7 @@
+import datetime
+import boto3
 from db_connector import getConnection
 import pandas as pd
-import os
 
 # récuperration de la connexion au base de données
 db = getConnection()
@@ -87,24 +88,40 @@ LEFT JOIN conso_mensuelle cm
   ON cm.ITMREF_0 = g.ITMREF_0 
  AND cm.STOFCY_0 = g.STOFCY_0 
  AND cm.date_mois = g.date_mois
--- FILTRE CLÉ : Élimine les mois précédant la création de l'article
 WHERE g.date_mois >= g.date_creation_article 
 ORDER BY g.ITMREF_0, g.STOFCY_0, g.date_mois;"""
 
 
-# Construction du dossier de destination du dataset
-script_folder = os.path.dirname(os.path.abspath(__file__))
-destination_folder = os.path.normpath(os.path.join(script_folder, '../..', 'data/raw'))
+
+date_extraction = datetime.datetime.today().strftime("%Y-%m-%d")
+date_mois = datetime.datetime.today().strftime("%Y/%m")
+fichier_data = f"data_brut_{date_extraction}.csv"
 
 
-# Fonction pour la récuperration des données du dataset depuis une date de début à une date fin
-def extract_conso_mensuelle():
+# Fonction pour l'extraction des données depuis la base de données et l'uploader vers amazon S3
+def extract_and_upload():
     df = pd.read_sql(
         sql=query_sql,
         con=db,
     )
 
-    df.to_csv(os.path.join(destination_folder, 'conso_mensuelle_brut.csv'), mode='w', encoding='utf-8', index=False)
+    df.to_csv(fichier_data, mode='w', encoding='utf-8', index=False)
+
+    s3_service = boto3.client("s3")
+    s3_service.upload_file(
+        fichier_data,
+        S3_bucket,
+        f"raw/{date_mois}/{fichier_data}"
+    )
+    s3_service.upload_file(
+        fichier_data,
+        S3_bucket,
+        f"raw/conso_mensuelle_brut_latest.csv"
+    )
+
+    print(f"Fichier de données <<{fichier_data}>> uploadé à S3 avec succés!")
 
 
-extract_conso_mensuelle()
+
+if __name__ == "__main__":
+    extract_and_upload()
