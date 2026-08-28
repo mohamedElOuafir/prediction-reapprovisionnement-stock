@@ -39,4 +39,4 @@ jobs:
 
             - name: Terraform execution
               working-directory: infrastructure
-              run: terraform apply
+              run: terraform apply -auto-approve
