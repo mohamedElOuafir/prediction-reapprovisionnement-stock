@@ -1,5 +1,5 @@
 import numpy as np
-from models.registry import get_classification_models, get_regression_models
+from src.models.registry import get_classification_models, get_regression_models
 
 
 

@@ -2,17 +2,20 @@
 from fastapi import FastAPI
 import datetime
 import math
-import os
 from mangum import Mangum
-import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from api.schema import PredictionRequest,PredictionResponse
-from predictor.predict import get_cached_artifact, predict_next_month
+from src.api.schema import PredictionRequest,PredictionResponse
+from src.predictor.predict import get_cached_artifact, predict_next_month
 
 
 app = FastAPI(title="API for stock consumption prediction")
 
-model_artifact = get_cached_artifact()
+model_artifact = None
+
+def get_model():
+    global model_artifact
+    if model_artifact is None:
+        model_artifact = get_cached_artifact()
+    return model_artifact
 
 
 @app.get("/")
@@ -33,7 +36,8 @@ async def check_api_health():
 # Route pour faire une prédiction sur la quantité de consommation d'un article sur un site spécifique
 @app.post("/prediction", response_model=PredictionResponse)
 async def predict(request: PredictionRequest):
-
+    model_artifact = get_model()
+    
     article = request.article
     site_article = request.site_article
 

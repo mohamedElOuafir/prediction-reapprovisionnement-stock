@@ -1,7 +1,7 @@
 import joblib
 import os
 import boto3
-from models.retrain import get_current_model_manifest
+from src.models.retrain import get_current_model_manifest
 
 
 script_folder = os.path.dirname(os.path.abspath(__file__))
@@ -33,7 +33,7 @@ def save_artifact(
 
 def load_artifact():
 
-    bucket = os.getenv("MODEL_BUCKET")
+    bucket = os.getenv("S3_BUCKET_MODELS")
 
     if bucket:
         s3_service = boto3.client("s3")

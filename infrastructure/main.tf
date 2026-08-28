@@ -53,9 +53,17 @@ resource "aws_iam_role_policy" "lambda_s3_read" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-        Action = "s3:GetObject"
+        Action = [
+          "s3:GetObject",
+          "s3:ListBucket"
+        ]
         Effect = "Allow"
-        Resource = "${aws_s3_bucket.models_bucket.arn}/*"
+        Resource = [
+          aws_s3_bucket.data_bucket.arn,
+          aws_s3_bucket.models_bucket.arn,
+          "${aws_s3_bucket.models_bucket.arn}/*", 
+          "${aws_s3_bucket.data_bucket.arn}/*"
+        ]
     }]
   })
 }
@@ -78,8 +86,12 @@ resource "aws_lambda_function" "reapprovisionnement_api_function" {
 
   environment {
     variables = {
-      S3_DATA_BUCKET = aws_s3_bucket.data_bucket.bucket
-      S3_MODELS_BUCKET = aws_s3_bucket.models_bucket.bucket
+      S3_BUCKET_DATA = aws_s3_bucket.data_bucket.bucket
+      S3_BUCKET_MODELS = aws_s3_bucket.models_bucket.bucket
     }
+  }
+
+  lifecycle {
+    ignore_changes = [ image_uri ]
   }
 }

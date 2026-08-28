@@ -1,6 +1,6 @@
-\src\data
-\src\models
-\src\api\main.py
-\src\predictor\predict_local.py
-\src\pipeline_regression.py
-\__pycache__
+src/data
+src/models
+src/api/main.py
+src/predictor/predict_local.py
+src/pipeline_regression.py
+__pycache__

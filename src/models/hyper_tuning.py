@@ -1,7 +1,7 @@
 from sklearn.metrics import make_scorer
 from sklearn.model_selection import  TimeSeriesSplit, GridSearchCV
-from models.evaluate import wape
-from models.registry import get_regression_models, hyperparametres_grid
+from src.models.evaluate import wape
+from src.models.registry import get_regression_models, hyperparametres_grid
 
 
 def _wape_scorer(y_true, y_pred):

@@ -6,22 +6,20 @@ import json
 import joblib
 import pandas as pd
 from fastapi import HTTPException
-import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from features.feature_engineering import apply_one_hot_encoding, apply_target_encoding, build_features
+from src.features.feature_engineering import apply_one_hot_encoding, apply_target_encoding, build_features
 
 
 
 
 s3_client = boto3.client("s3")
-S3_BUCKET_DATA = os.getenv("S3_DATA_BUCKET")
-S3_BUCKET_MODELS = os.getenv("S3_MODELS_BUCKET")
+S3_BUCKET_DATA = os.getenv("S3_BUCKET_DATA")
+S3_BUCKET_MODELS = os.getenv("S3_BUCKET_MODELS")
 
 
 
 def get_cached_artifact():
     
-    model_key = os.getenv("MODEL_KEY")  # Défini dynamiquement par retrain.py / rollback.py
+    model_key = os.getenv("MODEL_KEY") 
     if not model_key:
         # lecture du manifeste si la variable n'est pas définie
         obj = s3_client.get_object(Bucket=S3_BUCKET_MODELS, Key="production_manifest.json")
@@ -37,8 +35,12 @@ def get_cached_artifact():
 
 def load_latest_historical_data():
     local_path = "/tmp/latest_conso_brut.csv"
+    
+    date_mois = datetime.datetime.today().strftime("%Y-%m")
+    fichier_data = f"data_brut_{date_mois}.csv"
+    target_path = f"raw/{date_mois}/{fichier_data}"
 
-    s3_client.download_file(S3_BUCKET_DATA, "raw/conso_mensuelle_brut_latest.csv", local_path)
+    s3_client.download_file(S3_BUCKET_DATA, target_path, local_path)
     return pd.read_csv(local_path)
 
 
@@ -116,4 +118,4 @@ def build_future_row(df_historique_brut: pd.DataFrame, article: str, site_articl
     nouvelle_ligne['date_mois'] = date_future
     nouvelle_ligne['quantite'] = np.nan
  
-    return pd.DataFrame([nouvelle_ligne]), date_future
+    return pd.DataFrame([nouvelle_ligne])

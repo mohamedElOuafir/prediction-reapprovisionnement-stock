@@ -1,16 +1,14 @@
 import pandas as pd
 import os
-import sys
 
 from sklearn.metrics import r2_score
-from models.registry import get_regression_models
-from models.hyper_tuning import tune_regression_model
-from models.model_selection import select_best_regression_model
-from models.training import train_regression_models
-from models.evaluate import bias_normalized_score, evaluate_regression_models, wape
-from models.presistance import save_artifact
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from features.feature_engineering import (
+from src.models.registry import get_regression_models
+from src.models.hyper_tuning import tune_regression_model
+from src.models.model_selection import select_best_regression_model
+from src.models.training import train_regression_models
+from src.models.evaluate import bias_normalized_score, evaluate_regression_models, wape
+from src.models.presistance import save_artifact
+from src.features.feature_engineering import (
     build_features,
     encode_split,
     split_data_regression,
@@ -18,8 +16,6 @@ from features.feature_engineering import (
     apply_one_hot_encoding,
     fit_target_encoder
 )
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-
 
 
 script_folder = os.path.dirname(os.path.abspath(__file__))

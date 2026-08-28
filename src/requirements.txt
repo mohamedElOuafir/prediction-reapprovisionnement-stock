@@ -1,11 +1,15 @@
-asposestorage==1.0.2
 auto_mix_prep==0.2.0
 boto3==1.43.80
 catboost==1.2.10
+fastapi==0.141.1
 joblib==1.5.3
 lightgbm==4.7.0
+mangum==0.22.0
 numpy==2.5.2
 pandas==3.0.5
-pyarrow==25.0.1
+pydantic==2.13.5
+pyodbc==5.3.0
+python-dotenv==1.2.3
 scikit_learn==1.9.0
+uvicorn==0.52.4
 xgboost==3.4.1

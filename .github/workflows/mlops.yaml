@@ -28,14 +28,13 @@ jobs:
               uses: actions/setup-python@v5
               with: 
                 python-version: ${{ vars.PYTHON_VERSION }}
-                cache: 'pip'
 
             - name: Installation des dépendances
-              run: pip install -r retrain_modules.txt
+              run: pip install --no-cache-dir -r retrain_modules.txt
             
             - name: Exécution de pipeline de réentrainement
               env:
-                S3_DATA_BUCKET: ${{ secrets.S3_DATA_BUCKET }}
+                S3_BUCKET_DATA: ${{ secrets.S3_BUCKET_DATA }}
                 S3_BUCKET_MODELS: ${{ secrets.S3_BUCKET_MODELS}}
               run: python -m src.models.retrain
 

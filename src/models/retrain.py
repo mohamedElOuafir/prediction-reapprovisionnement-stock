@@ -3,30 +3,28 @@ import json
 import joblib
 import pandas as pd
 import boto3
-from datetime import datetime, timezone
+import datetime
 from sklearn.metrics import r2_score
 
-# Importer vos fonctions personnalisées
-from src.features.feature_engineering import build_features
-from src.models.evaluate import wape, bias_normalized_score
 from src.features.feature_engineering import (
+    build_features,
     split_data_regression, 
     encode_split, 
     fit_one_hot_encoder, 
     apply_one_hot_encoding, 
     fit_target_encoder
 )
-from models.training import train_regression_models
-from models.evaluate import evaluate_regression_models
-from models.model_selection import select_best_regression_model, compare_two_models
-from models.hyper_tuning import tune_regression_model
-from models.registry import get_regression_models
+from src.models.training import train_regression_models
+from src.models.evaluate import evaluate_regression_models, wape, bias_normalized_score
+from src.models.model_selection import select_best_regression_model, compare_two_models
+from src.models.hyper_tuning import tune_regression_model
+from src.models.registry import get_regression_models
 
 
 s3_service = boto3.client("s3")
 lambda_service = boto3.client("lambda")
 
-S3_DATA_BUCKET = os.getenv("S3_DATA_BUCKET")
+S3_BUCKET_DATA = os.getenv("S3_BUCKET_DATA")
 S3_BUCKET_MODELS = os.getenv("S3_BUCKET_MODELS")
 
 
@@ -70,32 +68,32 @@ def get_next_version_id():
 def run_retraining_pipeline():
     os.makedirs("tmp", exist_ok=True)
     
-    date_load = datetime.datetime.today().strftime("%Y-%m-%d")
-    date_mois = datetime.datetime.today().strftime("%Y/%m")
+    date_mois = datetime.datetime.today().strftime("%Y-%m")
+    fichier_data = f"data_brut_{date_mois}.csv"
     
     chemin_data_brut_local = "tmp/conso_mensuelle_brut.csv"
     chemin_data_processed_local = "tmp/conso_mensuelle_processed.parquet"
 
     # Extraction et Feature Engineering
-    fichier_cible = "raw/conso_mensuelle_brut_latest.csv"
-    s3_service.download_file(S3_DATA_BUCKET, fichier_cible, chemin_data_brut_local)
+    fichier_cible = f"raw/{date_mois}/{fichier_data}"
+    s3_service.download_file(S3_BUCKET_DATA, fichier_cible, chemin_data_brut_local)
 
     df = pd.read_csv(chemin_data_brut_local)
     df_processed = build_features(df)
     df_processed.to_parquet(chemin_data_processed_local, index=False)
 
-    nom_fichier_data_processed = f"data_processed_{date_load}.parquet"
+    nom_fichier_data_processed = f"data_processed_{date_mois}.parquet"
     s3_service.upload_file(
         chemin_data_processed_local,
-        S3_DATA_BUCKET,
+        S3_BUCKET_DATA,
         f"processed/{date_mois}/{nom_fichier_data_processed}"
     )
 
-    # 2. Split des données transformées
+    # Split des données transformées
     (x_train_list, y_train_list, x_val_list, y_val_list,
      x_train_final, y_train_final, x_test_final, y_test_final) = split_data_regression(df_processed)
 
-    # 3. Encodage et Sélection du meilleur modèle
+    # Encodage et Sélection du meilleur modèle
     x_train_enc, x_val_enc = [], []
     for i in range(len(x_train_list)):
         xt, xv, _, _ = encode_split(
@@ -156,9 +154,9 @@ def run_retraining_pipeline():
 
     # Comparaison Champion vs Challenger
     challenger_metrics = {
-        "r2": r2, 
-        "wape": wape_score, 
-        "bias": bias_score
+        "r2": round(r2, 2), 
+        "wape": round(wape_score,2), 
+        "bias": round(bias_score, 2)
     }
     current_model_manifest = get_current_model_manifest()
 
@@ -166,10 +164,10 @@ def run_retraining_pipeline():
         champion_metrics = current_model_manifest['metrics']
         should_promote, _ = compare_two_models(champion_metrics, challenger_metrics)
     else:
-        # Si aucun modèle n'est en prod
+        # Si aucun modèle n'est en production
         should_promote = True
 
-    # Sauvegarde & Promotion
+    # Sauvegarde et Promotion
     version_num = get_next_version_id()
     version_id = f"v{version_num}"
     
@@ -188,10 +186,10 @@ def run_retraining_pipeline():
 
     if should_promote:
         print(f"\n Promotion : Modèle {version_id} promu en production.")
-
+        print(f"\n\n current model manifest: \n\n{current_model_manifest}")
         new_manifest = {
             "active_version": version_id,
-            "promoted_at": datetime.datetime.now(timezone.utc).isoformat(),
+            "promoted_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
             "metrics": challenger_metrics,
             "previous_version": current_model_manifest.get("active_version") if current_model_manifest else None
         }
@@ -203,14 +201,6 @@ def run_retraining_pipeline():
             Body=json.dumps(new_manifest, indent=4)
         )
 
-        # Bascule de l'API AWS Lambda
-        lambda_service.update_function_configuration(
-            FunctionName="reapprovisionnement-api",
-            Environment={"Variables": {
-                "MODEL_BUCKET": S3_BUCKET_MODELS,
-                "MODEL_KEY": s3_version_key
-            }}
-        )
     else:
         active_version = current_model_manifest.get('active_version') if current_model_manifest else None
         print(f"\n Conservation : Le Champion {active_version} reste en production.")
