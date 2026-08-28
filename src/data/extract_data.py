@@ -1,7 +1,11 @@
 import datetime
 import boto3
+import os
+from dotenv import load_dotenv
 from db_connector import getConnection
 import pandas as pd
+
+load_dotenv()
 
 # récuperration de la connexion au base de données
 db = getConnection()
@@ -92,6 +96,7 @@ WHERE g.date_mois >= g.date_creation_article
 ORDER BY g.ITMREF_0, g.STOFCY_0, g.date_mois;"""
 
 
+S3_bucket = os.getenv("S3_DATA_BUCKET")
 
 date_extraction = datetime.datetime.today().strftime("%Y-%m-%d")
 date_mois = datetime.datetime.today().strftime("%Y/%m")
@@ -116,7 +121,7 @@ def extract_and_upload():
     s3_service.upload_file(
         fichier_data,
         S3_bucket,
-        f"raw/conso_mensuelle_brut_latest.csv"
+        "raw/conso_mensuelle_brut_latest.csv"
     )
 
     print(f"Fichier de données <<{fichier_data}>> uploadé à S3 avec succés!")

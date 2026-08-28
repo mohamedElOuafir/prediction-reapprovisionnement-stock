@@ -73,12 +73,11 @@ def run_retraining_pipeline():
     date_load = datetime.datetime.today().strftime("%Y-%m-%d")
     date_mois = datetime.datetime.today().strftime("%Y/%m")
     
-    nom_fichier_data_brut = f"data_brut_{date_load}.csv"
     chemin_data_brut_local = "tmp/conso_mensuelle_brut.csv"
     chemin_data_processed_local = "tmp/conso_mensuelle_processed.parquet"
 
-    # 1. Extraction & Feature Engineering
-    fichier_cible = f"raw/{date_mois}/{nom_fichier_data_brut}"
+    # Extraction et Feature Engineering
+    fichier_cible = "raw/conso_mensuelle_brut_latest.csv"
     s3_service.download_file(S3_DATA_BUCKET, fichier_cible, chemin_data_brut_local)
 
     df = pd.read_csv(chemin_data_brut_local)
@@ -114,7 +113,7 @@ def run_retraining_pipeline():
     results = evaluate_regression_models(x_val_enc, y_val_list, trained_models)
     best_model_name, summary, scores = select_best_regression_model(results)
 
-    # 4. Hyperparameter Tuning
+    # Hyperparameter Tuning
     x_train_final_enc, x_test_final_enc, _, _ = encode_split(
         x_train_final, 
         x_test_final, 
@@ -130,7 +129,7 @@ def run_retraining_pipeline():
         y_train_final
     )
 
-    # 5. Évaluation finale du Challenger sur le jeu de Test
+    # Évaluation finale du Challenger sur le jeu de Test
     y_pred_test = tuned_model.predict(x_test_final_enc)
     
     wape_score = wape(y_test_final, y_pred_test)
@@ -142,7 +141,7 @@ def run_retraining_pipeline():
     print(f"Hyperparamètres : {best_params}")
     print(f"WAPE : {wape_score:.2f}% | R2 : {r2:.4f} | Bias : {bias_score:.4f}")
 
-    # 6. Entraînement final sur tout le dataset
+    # Entraînement final sur tout le dataset
     x_all = pd.concat([x_train_final_enc, x_test_final_enc], axis=0)
     y_all = pd.concat([y_train_final, y_test_final], axis=0)
     
@@ -170,11 +169,11 @@ def run_retraining_pipeline():
         # Si aucun modèle n'est en prod
         should_promote = True
 
-    # 8. Sauvegarde & Promotion
+    # Sauvegarde & Promotion
     version_num = get_next_version_id()
     version_id = f"v{version_num}"
     
-    # Étape essentielle manquante : Sauvegarde physique et Upload de l'artéfact
+    # Étape essentielle manquante : Sauvegarde physique et Upload de l'artefact
     local_artifact_path = f"tmp/model_artifact_{version_id}.joblib"
     joblib.dump({
         "model": final_model,

@@ -1,0 +1,42 @@
+name: Iac Provisionning - Terraform
+
+on:
+    push:
+        branches: [main]
+        paths:
+            - '/infrastructure/*'
+        
+    workflow_dispatch:
+
+
+permissions:
+    id-token: write
+    contents: read
+
+jobs:
+    provisionning-infra:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Récupération du code source
+              uses: actions/checkout@v4
+
+            - name: Connexion à AWS via OIDC
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                role-to-assume: ${{ secrets.AWS_ROLE }}
+                aws-region: ${{ secrets.AWS_REGION }}
+
+            - name: Setup Terraform environnement
+              uses: hashicorp/setup-terraform@v3
+
+            - name: Terraform initialisation
+              working-directory: infrastructure
+              run: terraform init
+
+            - name: Terraform plan
+              working-directory: infrastructure
+              run: terraform plan
+
+            - name: Terraform execution
+              working-directory: infrastructure
+              run: terraform apply
