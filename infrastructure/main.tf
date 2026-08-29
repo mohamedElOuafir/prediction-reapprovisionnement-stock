@@ -95,3 +95,57 @@ resource "aws_lambda_function" "reapprovisionnement_api_function" {
     ignore_changes = [ image_uri ]
   }
 }
+
+
+resource "aws_apigatewayv2_api" "http_api_gateway" {
+  name = "reapprovisionnement_api_gateway"
+  protocol_type = "HTTP"
+
+  cors_configuration {
+    allow_origins = ["*"]
+    allow_headers = ["Content-Type", "Accept"]
+    allow_methods = ["GET", "POST", "OPTIONS"]
+  }
+}
+
+
+resource "aws_apigatewayv2_integration" "reapp_lambda_integration" {
+  api_id = aws_apigatewayv2_api.http_api_gateway.id
+  integration_type = "AWS_PROXY"
+  integration_uri = aws_lambda_function.reapprovisionnement_api_function.invoke_arn
+  payload_format_version = "2.0"
+}
+
+
+resource "aws_apigatewayv2_route" "check_health_route" {
+  api_id = aws_apigatewayv2_api.http_api_gateway.id
+  route_key = "GET /health_check"
+  target = "integrations/${aws_apigatewayv2_integration.reapp_lambda_integration.id}"
+}
+
+
+resource "aws_apigatewayv2_route" "prediction_route" {
+  api_id    = aws_apigatewayv2_api.http_api_gateway.id
+  route_key = "POST /prediction"
+  target    = "integrations/${aws_apigatewayv2_integration.reapp_lambda_integration.id}"
+}
+
+
+resource "aws_apigatewayv2_stage" "prod_stage" {
+  api_id      = aws_apigatewayv2_api.http_api_gateway.id
+  name        = "$default"
+  auto_deploy = true
+
+  default_route_settings {
+    throttling_burst_limit = 50
+    throttling_rate_limit  = 20
+  }
+}
+
+resource "aws_lambda_permission" "api_gateway_permission" {
+  statement_id = "AllowExecutionFromApiGateway"
+  action = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.reapprovisionnement_api_function.function_name
+  principal = "apigateway.amazonaws.com"
+  source_arn = "${aws_apigatewayv2_api.http_api_gateway.execution_arn}/*/*"
+}
