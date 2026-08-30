@@ -96,10 +96,10 @@ WHERE g.date_mois >= g.date_creation_article
 ORDER BY g.ITMREF_0, g.STOFCY_0, g.date_mois;"""
 
 
-S3_bucket = os.getenv("S3_DATA_BUCKET")
+S3_bucket = os.getenv("S3_BUCKET_DATA")
 
 date_extraction = datetime.datetime.today().strftime("%Y-%m")
-date_mois = datetime.datetime.today().strftime("%Y/%m")
+date_mois = datetime.datetime.today().strftime("%Y-%m")
 fichier_data = f"data_brut_{date_extraction}.csv"
 
 

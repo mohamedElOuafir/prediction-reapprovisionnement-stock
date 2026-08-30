@@ -1,5 +1,6 @@
-
-from fastapi import FastAPI
+import os
+import boto3
+from fastapi import FastAPI, HTTPException, Depends, Header
 import datetime
 import math
 from mangum import Mangum
@@ -11,11 +12,14 @@ app = FastAPI(title="API for stock consumption prediction")
 
 model_artifact = None
 
+
+# Fonction pour récuperrer le ML model actuelle actif:
 def get_model():
     global model_artifact
     if model_artifact is None:
         model_artifact = get_cached_artifact()
     return model_artifact
+
 
 
 @app.get("/")
@@ -36,6 +40,7 @@ async def check_api_health():
 # Route pour faire une prédiction sur la quantité de consommation d'un article sur un site spécifique
 @app.post("/prediction", response_model=PredictionResponse)
 async def predict(request: PredictionRequest):
+
     model_artifact = get_model()
     
     article = request.article

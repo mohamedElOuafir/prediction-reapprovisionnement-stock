@@ -7,3 +7,4 @@
 gen.py
 predict_local.py
 extract_data_local.py
+endpoint_local.py
